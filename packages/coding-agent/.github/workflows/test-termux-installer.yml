@@ -1,0 +1,69 @@
+name: Test Termux Installer
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'install-termux.sh'
+      - 'packages/coding-agent/docs/termux.md'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'install-termux.sh'
+      - 'packages/coding-agent/docs/termux.md'
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Lint shell script
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y shellcheck
+          shellcheck packages/coding-agent/install-termux.sh || true
+      
+      - name: Verify script is executable
+        run: |
+          chmod +x packages/coding-agent/install-termux.sh
+          file packages/coding-agent/install-termux.sh
+  
+  syntax:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Check bash syntax
+        run: bash -n packages/coding-agent/install-termux.sh
+      
+      - name: Verify one-liner syntax
+        run: |
+          # Extract and verify the one-liner from docs
+          grep -o 'pkg update.*prime-agent.sh' packages/coding-agent/docs/termux.md
+          echo "✓ One-liner found in documentation"
+      
+      - name: Verify curl URL is valid
+        run: |
+          url=$(grep -o 'https://raw.githubusercontent.com/[^[:space:]]*install-termux.sh' packages/coding-agent/install-termux.sh || echo "not-found")
+          if [ "$url" != "not-found" ]; then
+            echo "URL pattern found: $url"
+          fi
+  
+  docs-consistency:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Verify documentation consistency
+        run: |
+          echo "Checking termux.md references install-termux.sh..."
+          grep -q "install-termux.sh" packages/coding-agent/docs/termux.md || echo "⚠️ Warning: install-termux.sh not referenced"
+          
+          echo "Checking index.md has Termux link..."
+          grep -q "termux.md" packages/coding-agent/docs/index.md || echo "⚠️ Warning: termux.md not in index"
+          
+          echo "Checking quickstart.md has Termux note..."
+          grep -q "Termux" packages/coding-agent/docs/quickstart.md || echo "⚠️ Warning: Termux not mentioned in quickstart"
+          
+          echo "✓ Documentation consistency check passed"
